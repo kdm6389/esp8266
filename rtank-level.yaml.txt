@@ -1,0 +1,159 @@
+esphome:
+  name: rtank-level
+  platform: ESP8266
+  board: nodemcuv2  
+  #ESP8266-12F running on LiPO4 18650 1500mAh
+  on_boot:
+    priority: -100.0
+    then:
+      #- output.turn_on: gpio_d1 
+      #source https://www.randomdiyprojects.it/esphome-and-deep-sleep/
+      - script.execute: deep_sleep_evaluation
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  reboot_timeout: 0s
+  encryption:
+    key: "zxa4sJclwquXYc/h4yIqVIip1UlFxg3qCEusVNC5eHk="
+
+ota:
+  password: "70d826edace1b856157325ac251b42a4"
+
+web_server:
+  port: 80
+
+wifi:
+  networks:
+  - ssid: mi-fi
+    password: MYpassword?
+
+  - ssid: Home-WiFi
+    password: NOpassword?
+    #fast_connect: true #fast connect dont work with network, but single wifi 
+#mqtt deepsleep
+
+#It’s recommended to provide a static IP for your node, as it can dramatically improve connection times.
+
+  manual_ip:
+    static_ip: 192.168.29.215
+    gateway: 192.168.29.1
+    subnet: 255.255.255.0
+    dns1: 192.168.29.1
+    dns2: 8.8.8.8
+    
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Roof Tank Fallback Hotspot"
+    password: "QV7CU2V2l8wy"
+  power_save_mode: high #save power, It is on 18650 cell 
+
+captive_portal:
+
+binary_sensor:
+  - platform: homeassistant
+    id: disable_deep_sleep
+    entity_id: input_boolean.disable_deep_sleep
+
+status_led:
+  pin: D4  #gpio2 in-built led
+
+time:
+  - platform: sntp
+    timezone: "Asia/Kolkata"
+    id: ist_time
+
+sensor:
+  - platform: ultrasonic
+    trigger_pin: D1
+    echo_pin: D2
+    name: "Water-Tank Level"
+    update_interval: 1s #qurrey every 2s since only 6s to report data
+    filters:
+      - filter_out: nan
+      - median:
+          window_size: 7
+          send_every: 5
+          send_first_at: 2
+
+
+script:
+  - id: deep_sleep_evaluation
+    mode: queued
+    then:
+      - delay: 15s #HA sync in evey 10s so this has to be more then 10sec
+      - if:
+          condition:
+            binary_sensor.is_on: disable_deep_sleep
+          then:
+            - logger.log: 'Deep Sleep Disabled'
+          else:
+            - deep_sleep.enter: deep_sleep_enabled
+      - script.execute: deep_sleep_evaluation
+
+deep_sleep:
+  id: deep_sleep_enabled
+  #run_duration: 60sec # move this value to -delay- deep_sleep_evaluation script parameter, Start with 220mA pulse and then sattle at 110-120mA
+  sleep_duration: 298sec  #during sleep it uses 13.7mA on DT830D but as per datasheet it should use 15mA  , 5min sleep
+
+
+
+
+
+
+
+
+
+
+
+
+
+#    update_interval: 60s  #save more power
+#    #accuracy_decimals: 2
+#    unit_of_measurement: "%"
+#    filters:
+#      - lambda: return ((((x*100)-20)-(123-20))/(123-20))*-100;
+#      - filter_out: nan
+#
+#  - platform: ultrasonic
+#    trigger_pin: D1
+#    echo_pin: D2
+#    name: "Water-Tank Volume"
+#    update_interval: 60s  #save more power
+#    #accuracy_decimals: 2
+#    unit_of_measurement: "L"
+#    filters:
+#      - lambda: return ((((x*100)-20)-(123-20))/(123-20))*-1000;
+#      - filter_out: nan
+
+    #accuracy_decimals
+    #unit_of_measurement: cm
+    #filters:
+    #  - sliding_window_moving_average:
+     #     window_size: 6
+     #     send_every: 6
+    #
+      #- lambda: return (x * 100); # retun in cm as it is we will process from HAsstant
+      #- lambda: return 124 - (x * 100); # Convert from meters to cm and invert the reading # "how much is full?" instead of "how much empty?" x*100 for m to cm
+#
+#
+# Description of SYNTEX-WATER-TANK-1000L
+# total lengtlh 124cm
+# top to last 17.5cm
+# dimeter 110cm
+# manhole dimeter 40.5cm
+# at 17.5 is full_safe
+# currently at 30cm
+# empty at 114cm
+# at level 85cm water level is low
+#
+#
+#Tank Depth = TD al the way from the cover where the sensor is mounted to the bottom
+#Sensor Value = x this is will stay the same as this is the reading from the sensor
+#Excluded Distance = EX which is the distance I have on top from the sensor which is mounted to the cover to the highest level the water can reach
+#return ((((x*100)-EX)-(TD-EX))/(TD-EX))*-100
+#return ((((x*100)-EX)-(TD-EX))/(TD-EX))*-TC
+#
+#
