@@ -61,7 +61,7 @@ status_led:
   pin: D4  #gpio2 in-built led
 
 time:
-  - platform: sntp
+  - platform: sntp  #sntp works with static_ip but we need to add dns
     timezone: "Asia/Kolkata"
     id: ist_time
 
