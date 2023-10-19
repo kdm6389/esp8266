@@ -8,7 +8,7 @@ esphome:
     then:
       #- output.turn_on: gpio_d1 
       #source https://www.randomdiyprojects.it/esphome-and-deep-sleep/
-      - script.execute: deep_sleep_evaluation
+      - script.execute: deep_sleep_evaluation   #before you enable deep sleep connectt "D0 (GPI016) " to RST so to wake again
 
 # Enable logging
 logger:
